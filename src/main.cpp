@@ -1,6 +1,10 @@
 #include "cpu.hpp"
 #include "memory.hpp"
+#include "state.hpp"
+#include <atomic>
 #include <chrono>
+#include <cmath>
+#include <string>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
@@ -11,43 +15,63 @@ using namespace ftxui;
 
 constexpr auto LOOP_TIME = std::chrono::milliseconds(1000);
 
-struct History {
-  std::size_t cap = 512;
-  std::deque<float> v;
-  void push(float x) {
-    v.push_back(x);
-    if (v.size() > cap)
-      v.pop_front();
-  }
-};
-
-struct AppState {
-  History cpu_total;
-  std::vector<History> cpu_cores;
-  History mem_used;
-  CpuInfo cpu;
-  MemInfo mem;
-};
-
 int main() {
 
   auto screen = ScreenInteractive::Fullscreen();
 
-  CpuInfo cpu_info{};
-  MemInfo mem_info{};
+  AppState state{};
+
+  const auto heat = LinearGradient()
+                        .Angle(90)
+                        .Stop(Color::Red, 0.0f)
+                        .Stop(Color::Yellow, 0.5f)
+                        .Stop(Color::Green, 1.0f);
+
+  auto pct = [](float f) {
+    return std::to_string(static_cast<int>(std::lround(f * 100))) + "%";
+  };
 
   auto ui = Renderer([&] {
-    float mem_fraction =
-        mem_info.total > 0 ? static_cast<float>(mem_info.used) / mem_info.total
-                           : 0.0f;
-    return vbox({
-               text("wtop") | bold | center,
-               separator(),
-               hbox({text("cpu "), gauge(cpu_info.totalUsage / 100.0) | flex}),
-               hbox({text("mem "), gauge(mem_fraction) | flex}),
-           }) |
-           border;
-  });
+              float cpu = state.cpu_total.latest();
+              float mem = state.mem_used.latest();
+
+              Elements cores;
+              for (std::size_t i = 0; i < state.cpu_cores.size(); i++) {
+                float c = state.cpu_cores[i].latest();
+                cores.push_back(hbox({
+                    text("C" + std::to_string(i)) | size(WIDTH, EQUAL, 4),
+                    gauge(c) | color(heat) | size(WIDTH, EQUAL, 10),
+                    text(" " + pct(c)) | size(WIDTH, EQUAL, 5),
+                }));
+              }
+
+              auto cpu_box = window(
+                  text(" cpu " + pct(cpu) + " ") | bold,
+                  hbox({
+                      graph(as_graph(state.cpu_total)) | color(heat) | flex,
+                      separator(),
+                      vbox(std::move(cores)),
+                  }));
+
+              auto mem_box =
+                  window(text(" mem " + pct(mem) + " ") | bold,
+                         graph(as_graph(state.mem_used)) | color(heat));
+
+              return vbox({
+                         text("wtop") | bold | center,
+                         separator(),
+                         cpu_box | size(HEIGHT, GREATER_THAN, 12) | flex,
+                         mem_box | flex,
+                     }) |
+                     border;
+            }) |
+            CatchEvent([&](Event e) {
+              if (e == Event::Character('q')) {
+                screen.Exit();
+                return true;
+              }
+              return false;
+            });
 
   std::atomic<bool> running = true;
   std::thread tick([&] {
@@ -62,11 +86,9 @@ int main() {
       MemInfo new_mem = calculate_ram(parse_proc_meminfo());
       prev_ticks = std::move(cur_ticks);
 
-      screen.Post(
-          [&cpu_info, &mem_info, new_cpu = std::move(new_cpu), new_mem] {
-            cpu_info = new_cpu;
-            mem_info = new_mem;
-          });
+      screen.Post([&state, new_cpu = std::move(new_cpu), new_mem] {
+        state.update(new_cpu, new_mem);
+      });
       screen.PostEvent(Event::Custom);
     }
   });

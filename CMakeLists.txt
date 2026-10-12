@@ -19,6 +19,8 @@ add_executable(wtop
     src/main.cpp
     src/memory.cpp
     src/cpu.cpp
+    src/history.cpp
+    src/state.cpp
 )
 
 target_link_libraries(wtop
