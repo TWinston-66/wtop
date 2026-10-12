@@ -1,14 +1,22 @@
 #include "memory.hpp"
 #include <fstream>
+#include <iostream>
 #include <print>
 #include <sstream>
 #include <string>
 #include <vector>
 
+void print_mem_info(const MemInfo &mem_info) {
+  std::cout << "Used: " << mem_info.used << "kb\n"
+            << "Buffers: " << mem_info.buffered << "kb\n"
+            << "Cached: " << mem_info.cached << "kb\n"
+            << "Free: " << mem_info.free << "kb\n\n";
+}
+
 std::vector<std::string> parse_proc_meminfo() {
   std::string path = "/proc/meminfo";
 
-  std::ifstream proc_mem_file(path);
+  std::ifstream proc_mem_file("/proc/meminfo");
   std::vector<std::string> proc_mem_lines;
 
   if (!proc_mem_file.is_open()) {
@@ -75,6 +83,7 @@ MemInfo calculate_ram(const std::vector<std::string> &proc_mem_lines) {
   }
 
   return {
+      .total = found_values[0],
       .used = found_values[0] - found_values[1],
       .buffered = found_values[2],
       .cached = found_values[3] + found_values[4],
