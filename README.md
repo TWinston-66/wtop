@@ -2,6 +2,8 @@
 
 Minimal TUI Linux resource monitor in C++.
 
+![screenshot](docs/screenshot.png)
+
 ## Requirements
 
 - CMake 3.25 or newer
@@ -19,6 +21,11 @@ cmake --build build
 ```sh
 ./build/wtop
 ```
+
+## Roadmap
+
+1. Process list
+2. Network stats
 
 ## License
 
