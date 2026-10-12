@@ -1,6 +1,6 @@
 # wtop
 
-[![CI](https://github.com/TWinston-66/wtop/actions/workflows/ci.yml/badge.svg)](https://github.com/TWinston-66/wtop/actions/workflows/ci.yml)
+[![CI](https://github.com/TWinston-66/wtop/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TWinston-66/wtop/actions/workflows/ci.yml)
 
 Minimal TUI Linux resource monitor in C++.
 
